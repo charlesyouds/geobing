@@ -15,7 +15,7 @@ Geobing.prototype.setKey = function (key) {
   this.key = key;
 };
 
-Geobing.prototype.geocode = function (location, cbk) {
+Geobing.prototype.geocode = function (location, area, cbk) {
   key = (this.key === null || typeof this.key === 'undefined') ? process.env.BING_API_KEY : this.key;
 
   if(key === null) {
@@ -26,16 +26,21 @@ Geobing.prototype.geocode = function (location, cbk) {
       return cbk( new Error( "Geobing.geocode requires a location.") );
   }
 
-  var options = _.extend({ q: location }, {
+  var options = {
       key : key
-  });
+  };
+
+/*
+* Modified params to search within our area, with our inputted values.
+* */
 
   var params = {
       host: 'dev.virtualearth.net',
       port: 80,
-      path: '/REST/v1/Locations?' + querystring.stringify(options),
+      path: '/REST/v1/Locations/CA/BC/-/'+encodeURI(area)+'/'+ encodeURI(location) +'?' + querystring.stringify(options),
       headers: {}
   };
+
 
   return request( params, cbk );
 };
@@ -57,8 +62,8 @@ Geobing.prototype.reverseGeocode = function ( lat, lng, cbk, opts ) {
   return request( params, cbk );
 };
 
-Geobing.prototype.getCoordinates = function (location, cbk) {
-  this.geocode(location, function (err, result) {
+Geobing.prototype.getCoordinates = function (location, area, cbk) {
+  this.geocode(location, area, function (err, result) {
     var coordinates = utils.check(result, 'resourceSets.0.resources.0.point.coordinates');
     if (!coordinates || coordinates.length < 2) {
       return cbk(new Error('coordinates not found'), null);
@@ -90,6 +95,23 @@ function request ( options, cbk ) {
     });
 
     response.on("end", function ( argument ) {
+      if(data[0] == "<") {
+        console.log("ERROR: Returning null object.");
+          return cbk(null, 
+          {"resourceSets":[  
+            {
+              "resources": [ 
+                  {  
+                    "point":{
+                        "coordinates": [null, null]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+        );
+      }
       result = JSON.parse( data );
       return cbk( null, result );
     });
